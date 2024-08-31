@@ -1,0 +1,73 @@
+import numpy as np
+#Transition probabilities
+transition_probs = np.array([
+    [0.8, 0.1, 0.1, 0. ],  # Transition from rating 1
+    [0. , 0.6, 0.3, 0.1],  # Transition from rating 2
+    [0. , 0. , 0.5, 0.5],  # Transition from rating 3
+    [0. , 0. , 0. , 1. ]   # Transition from rating 4
+])
+
+# Maintenance costs
+maintenance_costs = np.array([0, 40, 40, 100])  # Cost for each rating
+
+# Rental price
+rental_price = 60
+
+# Rental period
+num_days = 9
+
+# Initialize value function
+num_states = 4
+value_function = np.zeros(num_states)
+
+# Backward induction
+for day in range(num_days, 0, -1):
+    if day == num_days:  # Last day of rental period
+        value_function = rental_price - maintenance_costs  # Value function for last day
+    else:
+        next_value_function = np.zeros(4)
+        for rating in range(3):
+            reward_maintenance = - maintenance_costs[rating]
+            reward_no_maintenance = rental_price
+            expected_future_value = np.dot(transition_probs[rating], value_function)
+            next_value_function[rating] = max(reward_maintenance + np.dot(transition_probs[1], value_function),
+                                                        reward_no_maintenance +  expected_future_value)
+
+        reward_maintenance = - maintenance_costs[3]
+        reward_no_maintenance = -float('inf')
+        expected_future_value = np.dot(transition_probs[1], value_function)
+        next_value_function[3] = reward_maintenance + expected_future_value
+        value_function = next_value_function
+
+# Extract optimal maintenance schedule
+optimal_schedule = []
+ratings = []
+ratings.append(2)
+
+current_rating = 2  # Starting rating
+for day in range(num_days):
+    if current_rating == 1:
+        optimal_schedule.append(0)  # No maintenance needed
+        current_rating = np.random.choice(range(1, 5), p=transition_probs[current_rating - 1])
+    elif current_rating == 4:
+        optimal_schedule.append(1)
+        current_rating = 1
+    else:
+        if value_function[current_rating - 1] > rental_price:
+            optimal_schedule.append(0)  # No maintenance needed
+            current_rating = np.random.choice(range(1, 5), p=transition_probs[current_rating - 1])
+        else:
+            optimal_schedule.append(1)  # Maintenance needed
+            current_rating = 1  # After maintenance, boat is in excellent condition
+    ratings.append(current_rating)
+
+# Print optimal maintenance schedule
+for day, action in enumerate(optimal_schedule, 1):
+    print(f"Day {day}: {'Maintenance' if action else 'No Maintenance'}")
+
+# Calculate total profit
+total_profit = sum([rental_price if not action else rental_price - maintenance_costs[action] for action in optimal_schedule])
+print(f"Total Profit: {total_profit}")
+
+print(value_function)
+print(ratings)
